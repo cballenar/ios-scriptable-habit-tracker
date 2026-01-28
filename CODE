@@ -191,9 +191,9 @@ async function editHabit(data, habit) {
       row.dismissOnSelect = false;
 
       const cell = row.addText(field.label.toUpperCase(), String(field.value || "(empty)"));
-      cell.titleFont = Font.systemFont(10);
+      cell.titleFont = Font.boldSystemFont(13);
       cell.titleColor = Color.gray();
-      cell.subtitleFont = Font.boldSystemFont(16);
+      cell.subtitleFont = Font.systemFont(16);
       cell.subtitleColor = COLOR_FILLED;
 
       row.onSelect = async () => {
@@ -216,7 +216,8 @@ async function editHabit(data, habit) {
 
     // Delete on the Left
     if (!isNew) {
-      const deleteBtn = controls.addButton("🗑️ Delete");
+      const deleteBtn = controls.addButton("DELETE");
+      deleteBtn.titleFont = Font.boldSystemFont(14);
       deleteBtn.onTap = () => {
         data.habits = data.habits.filter(h => h.id !== habit.id);
         saveData(data);
@@ -228,7 +229,8 @@ async function editHabit(data, habit) {
     }
 
     // Save on the Right
-    const saveBtn = controls.addButton("💾 Save");
+    const saveBtn = controls.addButton("SAVE");
+    saveBtn.titleFont = Font.boldSystemFont(14);
     saveBtn.onTap = () => {
       if (!current.id || !current.name) return;
       if (isNew) {
@@ -324,13 +326,21 @@ function createWidget(data) {
     iconElement.imageSize = new Size(iconSize, iconSize);
     iconElement.tintColor = new Color(habit.color || "#ffffff");
 
-    row.addSpacer(12 * scale); // Fixed gap
+    row.addSpacer(8); // Reduced gap between icon and dots
 
     const dotsStack = row.addStack();
     dotsStack.layoutHorizontally();
     dotsStack.centerAlignContent();
 
-    dates.forEach(dateStr => {
+    // Responsive dot cropping logic
+    // Approximate widget widths: Small ~155, Medium/Large ~329
+    const widgetWidth = (config.widgetFamily === "small" ? 155 : 329);
+    const reservedWidth = (PADDING * 2) + 8 + iconSize + 8 + (fontSize * 1.5) + 20;
+    const availableWidth = widgetWidth - reservedWidth;
+    const maxDots = Math.max(1, Math.floor(availableWidth / (9 * scale)));
+    const visibleDates = dates.slice(-maxDots);
+
+    visibleDates.forEach(dateStr => {
       const count = habit.history ? (habit.history[dateStr] || 0) : 0;
       const opacity = Math.min(count / (habit.target || 1), 1.0);
 
