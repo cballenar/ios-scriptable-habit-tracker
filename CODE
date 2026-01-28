@@ -166,14 +166,15 @@ async function editHabit(data, habit) {
   let current = habit ? { ...habit } : { id: "", name: "", icon: "star.fill", color: "#ffffff", target: 1, history: {} };
 
   const table = new UITable();
-  table.showSeparators = true;
+  table.showSeparators = false;
 
   async function render() {
     table.removeAllRows();
 
     const header = new UITableRow();
     header.isHeader = true;
-    header.addText(isNew ? "Add New Habit" : `Editing ${current.name}`);
+    const headerCell = header.addText(isNew ? "Add New Habit" : `Editing ${current.name}`);
+    headerCell.titleFont = Font.boldSystemFont(18);
     table.addRow(header);
 
     const fields = [
@@ -184,16 +185,16 @@ async function editHabit(data, habit) {
       { label: "Target (Goal)", key: "target", value: String(current.target) }
     ];
 
-    // Add vertical padding at the top
-    table.addRow(new UITableRow());
-
     fields.forEach(field => {
       const row = new UITableRow();
-      row.height = 60;
+      row.height = 70;
       row.dismissOnSelect = false;
-      // Swap title and subtitle: Value is Title (Large), Label is Subtitle (Small)
-      const titleCell = row.addText(field.value || "(empty)", field.label);
-      titleCell.subtitleColor = Color.gray();
+
+      const cell = row.addText(field.label.toUpperCase(), String(field.value || "(empty)"));
+      cell.titleFont = Font.systemFont(10);
+      cell.titleColor = Color.gray();
+      cell.subtitleFont = Font.boldSystemFont(16);
+      cell.subtitleColor = COLOR_FILLED;
 
       row.onSelect = async () => {
         const a = new Alert();
@@ -209,8 +210,6 @@ async function editHabit(data, habit) {
       };
       table.addRow(row);
     });
-
-    table.addRow(new UITableRow()); // Spacer before buttons
 
     const controls = new UITableRow();
     controls.height = 60;
@@ -298,6 +297,11 @@ function createWidget(data) {
   if (config.widgetFamily === "small") numDays = 7;
   if (config.widgetFamily === "large") numDays = 28;
 
+  // Adjust numDays to fit screen if scale is high
+  if (scale > 1.5 && config.widgetFamily !== "small") {
+    numDays = 12;
+  }
+
   const dates = [];
   for (let i = numDays - 1; i >= 0; i--) {
     const d = new Date();
@@ -313,12 +317,14 @@ function createWidget(data) {
     row.centerAlignContent();
     row.url = `scriptable:///run/${encodeURIComponent(Script.name())}?habitId=${habit.id}&action=increment`;
 
+    row.addSpacer(8); // Left margin
+
     const iconSymbol = SFSymbol.named(habit.icon || "star.fill");
     const iconElement = row.addImage(iconSymbol.image);
     iconElement.imageSize = new Size(iconSize, iconSize);
     iconElement.tintColor = new Color(habit.color || "#ffffff");
 
-    row.addSpacer(12 * scale); // Fixed gap instead of flexible
+    row.addSpacer(12 * scale); // Fixed gap
 
     const dotsStack = row.addStack();
     dotsStack.layoutHorizontally();
@@ -338,11 +344,7 @@ function createWidget(data) {
       dot.textColor = new Color(habit.color || "#ffffff", count > 0 ? opacity : 0.15);
     });
 
-    row.addSpacer(); // Keep one flexible spacer to push counter to the far right if desired,
-    // but user says "long gaps". Let's try fixed spacer here too if we want it tighter.
-    // Actually, github's is usually left-aligned.
-    // Let's use a small fixed spacer to the counter.
-    row.addSpacer(12 * scale);
+    row.addSpacer();
 
     const todayCount = habit.history ? (habit.history[formatDate(new Date())] || 0) : 0;
     const counterStack = row.addStack();
