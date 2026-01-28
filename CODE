@@ -1,5 +1,5 @@
 // 🟢 HABIT TRACKER CORE
-// Version 2.0 - Authenticated & Architectural Overhaul
+// Version 2.1
 
 const FILE_NAME = "habit_tracker_data.json";
 const KEYCHAIN_HABITS_KEY = "multiHabitTrackerHabits";
@@ -50,7 +50,6 @@ async function loadData() {
     const json = fm.readString(path);
     return JSON.parse(json);
   } else {
-    // Migration check
     return await migrateFromKeychain();
   }
 }
@@ -65,13 +64,11 @@ async function migrateFromKeychain() {
   let habits = [];
   let settings = { theme: DEFAULT_THEME };
 
-  // 1. Load Theme
   if (Keychain.contains(KEYCHAIN_THEME_KEY)) {
     const t = Keychain.get(KEYCHAIN_THEME_KEY);
     if (THEMES[t]) settings.theme = t;
   }
 
-  // 2. Load Habits List
   let habitNames = [];
   if (Keychain.contains(KEYCHAIN_HABITS_KEY)) {
     try {
@@ -79,20 +76,15 @@ async function migrateFromKeychain() {
     } catch (e) { console.error(e); }
   }
 
-  // 3. Load History
   if (Keychain.contains(KEYCHAIN_STORAGE_KEY)) {
     try {
       const raw = Keychain.get(KEYCHAIN_STORAGE_KEY);
-      const parsed = JSON.parse(raw); // { habits: { "Name": ["2023-01-01"] } }
+      const parsed = JSON.parse(raw);
 
       habitNames.forEach((name, index) => {
         const historyArray = parsed.habits[name] || [];
-
-        // Convert array of dates string "2023-01-01" to map { "2023-01-01": 1 }
         let historyMap = {};
-        historyArray.forEach(date => {
-          historyMap[date] = 1;
-        });
+        historyArray.forEach(date => { historyMap[date] = 1; });
 
         habits.push({
           id: generateUUID(),
@@ -106,7 +98,6 @@ async function migrateFromKeychain() {
 
     } catch (e) { console.error("Migration error: " + e); }
   } else {
-    // Initialize default if no old data
     habits = [
       { id: generateUUID(), name: "Water", icon: "drop.fill", color: "#64D2FF", target: 1, history: {} },
       { id: generateUUID(), name: "Read", icon: "book.fill", color: "#FFD60A", target: 1, history: {} }
@@ -127,7 +118,7 @@ function generateUUID() {
 }
 
 function daysInMonth(month, year) {
-  return new Date(year, month, 0).getDate(); // month is 1-indexed
+  return new Date(year, month, 0).getDate();
 }
 
 function generateMonthDates(year, month) {
@@ -139,7 +130,7 @@ function generateMonthDates(year, month) {
   return dates;
 }
 
-// 🔵 WIDGET CREATION
+// 🔵 UI: WIDGET RENDERING
 function createWidget(data, widgetFamily) {
   const { settings, habits } = data;
   const theme = THEMES[settings.theme] || THEMES.dark;
@@ -153,7 +144,6 @@ function createWidget(data, widgetFamily) {
   const month = now.getMonth() + 1;
   const todayDate = `${year}-${String(month).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  // Header: Weekday | Month
   const headerStack = w.addStack();
   headerStack.layoutHorizontally();
   headerStack.centerAlignContent();
@@ -180,8 +170,6 @@ function createWidget(data, widgetFamily) {
     return w;
   }
 
-  // Layout Logic
-  // Scale row height based on number of habits to fill space
   const dates = generateMonthDates(year, month);
 
   habitsToShow.forEach(habit => {
@@ -189,7 +177,6 @@ function createWidget(data, widgetFamily) {
     row.layoutHorizontally();
     row.centerAlignContent();
 
-    // Icon (Placeholder using Text for now, switch to SFSymbol later if needed or image)
     const icon = SFSymbol.named(habit.icon) || SFSymbol.named("circle.fill");
     const iconImg = row.addImage(icon.image);
     iconImg.imageSize = new Size(12, 12);
@@ -197,49 +184,30 @@ function createWidget(data, widgetFamily) {
 
     row.addSpacer(6);
 
-    // Dots Grid
-    // To fit all days, we might need logic. For now, standard row.
     const dotsStack = row.addStack();
-    dotsStack.layoutHorizontally(); // Simple horizontal list for now
+    dotsStack.layoutHorizontally();
 
-    // Calculate visible range (last 15 days or current month?)
-    // Requirement: "Widget will load last 30 days... but only display number of days that fit"
-    // For simplicity in Stage 1, we show current month dots like original, but upgrade logic
-
-    // Let's stick to the grid idea: dates of this month
-    // Determine circle size based on width availability? 
-    // Simplified: Show up to N days back + today? 
-    // The requirement says "The widget will load the last 30 days... but it will only display the number of days that fit"
-    // Let's try to fit roughly 15-20 dots
-
-    const visibleDates = dates; // Show all month for now
+    const visibleDates = dates;
 
     visibleDates.forEach(date => {
       const count = habit.history[date] || 0;
       const target = habit.target || 1;
       const opacity = count > 0 ? Math.min(count / target, 1.0) : 0.2;
 
-      // Highlight today
       const isToday = (date === todayDate);
 
       const dotStack = dotsStack.addStack();
       dotStack.layoutVertically();
 
-      // Dot
       const dotSize = 6;
-      const dot = dotStack.addText("●"); // \u25CF
+      const dot = dotStack.addText("●");
       dot.font = Font.systemFont(dotSize);
 
       let color = new Color(habit.color);
       if (count === 0) {
         color = new Color(theme.text, 0.2);
-        if (isToday) color = Color.red(); // Highlight today empty
+        if (isToday) color = Color.red();
       } else {
-        // Apply opacity to the habit color? Use constructor
-        // Scriptable Color doesn't take opacity in constructor with hex, assumes 1.
-        // We can mix or just use alpha on the color object
-        // However, creating a new color from another is tricky.
-        // Let's assume habit.color is hex.
         color = new Color(habit.color, opacity);
       }
 
@@ -249,7 +217,6 @@ function createWidget(data, widgetFamily) {
 
     row.addSpacer(null);
 
-    // Count
     let monthCount = 0;
     Object.values(habit.history).forEach(v => monthCount += v);
     const countText = row.addText(`${monthCount}`);
@@ -262,6 +229,170 @@ function createWidget(data, widgetFamily) {
   return w;
 }
 
+// 🔵 UI: ADMIN TOOLS
+async function presentMainMenu(data) {
+  const alert = new Alert();
+  alert.title = "Habit Tracker Options";
+  alert.addAction("Manage Habits");
+  alert.addAction("Set Theme");
+  alert.addCancelAction("Exit");
+
+  const response = await alert.presentSheet();
+
+  if (response === 0) {
+    await presentHabitManager(data);
+  } else if (response === 1) {
+    await presentThemePicker(data);
+    await presentMainMenu(data);
+  }
+}
+
+async function presentHabitManager(data) {
+  const table = new UITable();
+  table.showSeparators = true;
+
+  // Header (Pseudo-header to allow dismissOnSelect)
+  const navRow = new UITableRow();
+  navRow.height = 60;
+  navRow.dismissOnSelect = true; // Essential for refreshing the table without stacking
+
+  // Title
+  const titleCell = navRow.addText("Manage Habits");
+  titleCell.titleFont = Font.mediumSystemFont(22);
+  titleCell.widthWeight = 10;
+
+  // Add "+" Action
+  const plusIcon = SFSymbol.named("plus");
+  const addCell = navRow.addImage(plusIcon.image);
+  addCell.widthWeight = 1;
+  addCell.rightAligned();
+
+  // Entire row triggers the action to support dismissal
+  navRow.onSelect = async () => {
+    await presentHabitForm(data);
+    await presentHabitManager(data);
+  }
+  table.addRow(navRow);
+
+  // Existing Habits
+  data.habits.forEach((habit, index) => {
+    const row = new UITableRow();
+    row.height = 60;
+    row.dismissOnSelect = true;
+    row.cellSpacing = 12;
+
+    // Icon
+    const iconFn = SFSymbol.named(habit.icon) || SFSymbol.named("circle.fill");
+    const imageCell = row.addImage(iconFn.image);
+    imageCell.widthWeight = 1;
+    imageCell.tintColor = new Color(habit.color);
+
+    // Info
+    const textCell = row.addText(habit.name, `Target: ${habit.target} | Color: ${habit.color}`);
+    textCell.widthWeight = 8;
+    textCell.titleFont = Font.systemFont(16);
+    textCell.subtitleFont = Font.systemFont(12);
+    textCell.subtitleColor = Color.gray();
+
+    // Edit Action
+    row.onSelect = async () => {
+      await presentHabitActionSheet(data, habit, index);
+      await presentHabitManager(data);
+    };
+
+    table.addRow(row);
+  });
+
+  await table.present();
+}
+
+async function presentThemePicker(data) {
+  const a = new Alert();
+  a.title = "Select Theme";
+  THEME_NAMES.forEach(name => a.addAction(name));
+  a.addCancelAction("Cancel");
+
+  const choice = await a.presentSheet();
+  if (choice >= 0 && choice < THEME_NAMES.length) {
+    const keys = Object.keys(THEMES);
+    if (choice < keys.length) {
+      data.settings.theme = keys[choice];
+      saveData(data);
+    }
+  }
+}
+
+async function presentHabitActionSheet(data, habit, index) {
+  const a = new Alert();
+  a.title = habit.name;
+  a.message = "Choose an action";
+  a.addAction("Edit Details");
+  a.addAction("Check-in (Implement Later)"); // Placeholder for check-in
+  a.addDestructiveAction("Delete Habit");
+  a.addCancelAction("Cancel");
+
+  const choice = await a.presentSheet();
+  if (choice === 0) {
+    await presentHabitForm(data, habit, index);
+  } else if (choice === 2) {
+    if (await confirmDelete(habit.name)) {
+      data.habits.splice(index, 1);
+      saveData(data);
+    }
+  }
+}
+
+async function confirmDelete(name) {
+  const a = new Alert();
+  a.title = `Delete ${name}?`;
+  a.message = "This cannot be undone.";
+  a.addDestructiveAction("Delete");
+  a.addCancelAction("Cancel");
+  return (await a.presentAlert()) === 0;
+}
+
+async function presentHabitForm(data, habit = null, index = null) {
+  const isEdit = habit !== null;
+  const alert = new Alert();
+  alert.title = isEdit ? "Edit Habit" : "New Habit";
+
+  alert.addTextField("Name", isEdit ? habit.name : "");
+  alert.addTextField("Icon (SFSymbol)", isEdit ? habit.icon : "star.fill");
+  alert.addTextField("Color (Hex)", isEdit ? habit.color : DEFAULT_HABIT_COLORS[data.habits.length % DEFAULT_HABIT_COLORS.length]);
+  alert.addTextField("Target (Daily)", isEdit ? String(habit.target) : "1");
+
+  alert.addAction("Save");
+  alert.addCancelAction("Cancel");
+
+  const response = await alert.presentAlert();
+
+  if (response === 0) {
+    const name = alert.textFieldValue(0).trim();
+    const icon = alert.textFieldValue(1).trim();
+    const color = alert.textFieldValue(2).trim();
+    const target = parseInt(alert.textFieldValue(3).trim()) || 1;
+
+    if (name.length === 0) return; // Validation
+
+    const newHabit = {
+      id: isEdit ? habit.id : generateUUID(),
+      name: name,
+      icon: icon,
+      color: color,
+      target: target,
+      history: isEdit ? habit.history : {}
+    };
+
+    if (isEdit) {
+      data.habits[index] = newHabit;
+    } else {
+      data.habits.push(newHabit);
+    }
+
+    saveData(data);
+  }
+}
+
 // 🔵 MAIN ENTRY
 async function main() {
   const data = await loadData();
@@ -270,10 +401,8 @@ async function main() {
     const w = createWidget(data, config.widgetFamily);
     Script.setWidget(w);
   } else {
-    // In-App Menu
-    // For Stage 1 we just show the widget preview and migration success
-    const w = createWidget(data, "medium");
-    await w.presentMedium();
+    // In-App Dashboard
+    await presentMainMenu(data);
   }
 }
 
