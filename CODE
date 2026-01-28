@@ -184,16 +184,21 @@ async function editHabit(data, habit) {
       { label: "Target (Goal)", key: "target", value: String(current.target) }
     ];
 
+    // Add vertical padding at the top
+    table.addRow(new UITableRow());
+
     fields.forEach(field => {
       const row = new UITableRow();
+      row.height = 60;
       row.dismissOnSelect = false;
-      const titleCell = row.addText(field.label, field.value || "(empty)");
+      // Swap title and subtitle: Value is Title (Large), Label is Subtitle (Small)
+      const titleCell = row.addText(field.value || "(empty)", field.label);
       titleCell.subtitleColor = Color.gray();
 
       row.onSelect = async () => {
         const a = new Alert();
-        a.title = field.label;
-        a.addTextField(field.label, field.value);
+        a.title = `Edit ${field.label}`;
+        a.addTextField(field.label, String(field.value));
         a.addAction("OK");
         a.addCancelAction("Cancel");
         if (await a.presentAlert() === 0) {
@@ -205,7 +210,25 @@ async function editHabit(data, habit) {
       table.addRow(row);
     });
 
+    table.addRow(new UITableRow()); // Spacer before buttons
+
     const controls = new UITableRow();
+    controls.height = 60;
+
+    // Delete on the Left
+    if (!isNew) {
+      const deleteBtn = controls.addButton("🗑️ Delete");
+      deleteBtn.onTap = () => {
+        data.habits = data.habits.filter(h => h.id !== habit.id);
+        saveData(data);
+        App.close();
+      };
+      deleteBtn.centerAligned();
+    } else {
+      controls.addText(""); // Placeholder if no delete button
+    }
+
+    // Save on the Right
     const saveBtn = controls.addButton("💾 Save");
     saveBtn.onTap = () => {
       if (!current.id || !current.name) return;
@@ -216,17 +239,10 @@ async function editHabit(data, habit) {
         data.habits[index] = current;
       }
       saveData(data);
-      App.close(); // Close the table view
+      App.close();
     };
+    saveBtn.centerAligned();
 
-    if (!isNew) {
-      const deleteBtn = controls.addButton("🗑️ Delete");
-      deleteBtn.onTap = () => {
-        data.habits = data.habits.filter(h => h.id !== habit.id);
-        saveData(data);
-        App.close();
-      };
-    }
     table.addRow(controls);
     table.reload();
   }
@@ -269,14 +285,18 @@ function createWidget(data) {
   widget.backgroundColor = BACKGROUND_COLOR;
 
   const numHabits = data.habits.length;
-  const scale = numHabits <= 2 ? 2.5 : 1; // Slightly reduced scale for better fit
-  const dotSize = 6 * scale;
-  const iconSize = 12 * scale;
-  const fontSize = 10 * scale;
+  // Dynamic scale based on habit count
+  let scale = 1.0;
+  if (numHabits <= 2) scale = 2.8;
+  else if (numHabits <= 4) scale = 1.5;
 
-  let numDays = 22;
+  const dotSize = 8 * scale;
+  const iconSize = 16 * scale;
+  const fontSize = 12 * scale;
+
+  let numDays = 20;
   if (config.widgetFamily === "small") numDays = 7;
-  if (config.widgetFamily === "large") numDays = 30;
+  if (config.widgetFamily === "large") numDays = 28;
 
   const dates = [];
   for (let i = numDays - 1; i >= 0; i--) {
@@ -285,7 +305,7 @@ function createWidget(data) {
     dates.push(formatDate(d));
   }
 
-  widget.addSpacer(); // Top spacer for vertical centering
+  widget.addSpacer();
 
   data.habits.forEach((habit, idx) => {
     const row = widget.addStack();
@@ -298,7 +318,7 @@ function createWidget(data) {
     iconElement.imageSize = new Size(iconSize, iconSize);
     iconElement.tintColor = new Color(habit.color || "#ffffff");
 
-    row.addSpacer(); // Push dots to center
+    row.addSpacer(12 * scale); // Fixed gap instead of flexible
 
     const dotsStack = row.addStack();
     dotsStack.layoutHorizontally();
@@ -309,7 +329,7 @@ function createWidget(data) {
       const opacity = Math.min(count / (habit.target || 1), 1.0);
 
       const dotContainer = dotsStack.addStack();
-      dotContainer.size = new Size(8 * scale, dotSize + 4 * scale);
+      dotContainer.size = new Size(9 * scale, dotSize + 4 * scale);
       dotContainer.centerAlignContent();
 
       const dot = dotContainer.addText("●");
@@ -318,18 +338,21 @@ function createWidget(data) {
       dot.textColor = new Color(habit.color || "#ffffff", count > 0 ? opacity : 0.15);
     });
 
-    row.addSpacer(); // Push dots to center
+    row.addSpacer(); // Keep one flexible spacer to push counter to the far right if desired,
+    // but user says "long gaps". Let's try fixed spacer here too if we want it tighter.
+    // Actually, github's is usually left-aligned.
+    // Let's use a small fixed spacer to the counter.
+    row.addSpacer(12 * scale);
 
     const todayCount = habit.history ? (habit.history[formatDate(new Date())] || 0) : 0;
     const counterStack = row.addStack();
-    counterStack.size = new Size(20 * scale, iconSize);
-    counterStack.centerAlignContent();
+    // Counter should be wide enough to not wrap
     const counterText = counterStack.addText(String(todayCount));
     counterText.font = new Font("Menlo-Bold", fontSize);
-    counterText.textColor = new Color(habit.color || "#ffffff", 0.8);
+    counterText.textColor = new Color(habit.color || "#ffffff", 0.9);
 
     if (idx < numHabits - 1) {
-      widget.addSpacer(); // Space between rows
+      widget.addSpacer();
     }
   });
 
@@ -339,7 +362,7 @@ function createWidget(data) {
     msg.textColor = COLOR_FILLED;
   }
 
-  widget.addSpacer(); // Bottom spacer for vertical centering
+  widget.addSpacer();
 
   return widget;
 }
