@@ -1,4 +1,17 @@
 // 🟢 HABIT TRACKER CONFIGURATION
+/**
+ * HOW TO USE TAP-TO-TRACK:
+ * 1. Add this script as a widget to your home screen.
+ * 2. Tapping any habit lane will increment its count for today.
+ * 3. URL Scheme Format: scriptable:///run/[ScriptName]?habitId=[ID]&action=increment
+ *
+ * ADMIN & MANUAL EDITS:
+ * - Run the script inside the Scriptable app to access the Admin Menu.
+ * - Manage Habits: Add/Edit/Delete habits with permanent labels.
+ * - Manual Entry: Correct counts for any date using a Date Picker.
+ * - Export Data: Backup your JSON data via the Share sheet.
+ */
+
 const fm = FileManager.iCloud();
 const directory = fm.documentsDirectory();
 const DATA_PATH = fm.joinPath(directory, "habit-tracker.json");
@@ -150,46 +163,76 @@ async function manageHabits(data) {
 
 async function editHabit(data, habit) {
   const isNew = !habit;
-  const alert = new Alert();
-  alert.title = isNew ? "Add Habit" : `Edit ${habit.name}`;
+  let current = habit ? { ...habit } : { id: "", name: "", icon: "star.fill", color: "#ffffff", target: 1, history: {} };
 
-  alert.addTextField("ID (e.g. coffee)", isNew ? "" : habit.id);
-  alert.addTextField("Name", isNew ? "" : habit.name);
-  alert.addTextField("Icon (SFSymbol)", isNew ? "star.fill" : habit.icon);
-  alert.addTextField("Color (Hex)", isNew ? "#ffffff" : habit.color);
-  alert.addTextField("Target (Number)", isNew ? "1" : String(habit.target));
+  const table = new UITable();
+  table.showSeparators = true;
 
-  alert.addAction("Save");
-  if (!isNew) alert.addDestructiveAction("Delete");
-  alert.addCancelAction("Cancel");
+  async function render() {
+    table.removeAllRows();
 
-  const res = await alert.presentAlert();
-  if (res === -1) return;
+    const header = new UITableRow();
+    header.isHeader = true;
+    header.addText(isNew ? "Add New Habit" : `Editing ${current.name}`);
+    table.addRow(header);
 
-  if (res === 1 && !isNew) {
-    data.habits = data.habits.filter(h => h.id !== habit.id);
-    saveData(data);
-    return;
-  }
+    const fields = [
+      { label: "ID (unique)", key: "id", value: current.id },
+      { label: "Name", key: "name", value: current.name },
+      { label: "Icon (SFSymbol)", key: "icon", value: current.icon },
+      { label: "Color (Hex)", key: "color", value: current.color },
+      { label: "Target (Goal)", key: "target", value: String(current.target) }
+    ];
 
-  if (res === 0) {
-    const newHabit = {
-      id: alert.textFieldValue(0),
-      name: alert.textFieldValue(1),
-      icon: alert.textFieldValue(2),
-      color: alert.textFieldValue(3),
-      target: parseInt(alert.textFieldValue(4)) || 1,
-      history: isNew ? {} : habit.history
+    fields.forEach(field => {
+      const row = new UITableRow();
+      row.dismissOnSelect = false;
+      const titleCell = row.addText(field.label, field.value || "(empty)");
+      titleCell.subtitleColor = Color.gray();
+
+      row.onSelect = async () => {
+        const a = new Alert();
+        a.title = field.label;
+        a.addTextField(field.label, field.value);
+        a.addAction("OK");
+        a.addCancelAction("Cancel");
+        if (await a.presentAlert() === 0) {
+          const val = a.textFieldValue(0);
+          current[field.key] = field.key === "target" ? (parseInt(val) || 1) : val;
+          await render();
+        }
+      };
+      table.addRow(row);
+    });
+
+    const controls = new UITableRow();
+    const saveBtn = controls.addButton("💾 Save");
+    saveBtn.onTap = () => {
+      if (!current.id || !current.name) return;
+      if (isNew) {
+        data.habits.push(current);
+      } else {
+        const index = data.habits.findIndex(h => h.id === habit.id);
+        data.habits[index] = current;
+      }
+      saveData(data);
+      App.close(); // Close the table view
     };
 
-    if (isNew) {
-      data.habits.push(newHabit);
-    } else {
-      const index = data.habits.findIndex(h => h.id === habit.id);
-      data.habits[index] = newHabit;
+    if (!isNew) {
+      const deleteBtn = controls.addButton("🗑️ Delete");
+      deleteBtn.onTap = () => {
+        data.habits = data.habits.filter(h => h.id !== habit.id);
+        saveData(data);
+        App.close();
+      };
     }
-    saveData(data);
+    table.addRow(controls);
+    table.reload();
   }
+
+  await render();
+  await table.present();
 }
 
 async function manualEntry(data) {
@@ -226,15 +269,14 @@ function createWidget(data) {
   widget.backgroundColor = BACKGROUND_COLOR;
 
   const numHabits = data.habits.length;
-  const scale = numHabits <= 2 ? 3 : 1;
+  const scale = numHabits <= 2 ? 2.5 : 1; // Slightly reduced scale for better fit
   const dotSize = 6 * scale;
-  const iconSize = 10 * scale;
-  const fontSize = 8 * scale;
-  const spacing = LINES_SPACING * scale;
+  const iconSize = 12 * scale;
+  const fontSize = 10 * scale;
 
-  let numDays = 25;
-  if (config.widgetFamily === "small") numDays = 8;
-  if (config.widgetFamily === "large") numDays = 32;
+  let numDays = 22;
+  if (config.widgetFamily === "small") numDays = 7;
+  if (config.widgetFamily === "large") numDays = 30;
 
   const dates = [];
   for (let i = numDays - 1; i >= 0; i--) {
@@ -242,6 +284,8 @@ function createWidget(data) {
     d.setDate(d.getDate() - i);
     dates.push(formatDate(d));
   }
+
+  widget.addSpacer(); // Top spacer for vertical centering
 
   data.habits.forEach((habit, idx) => {
     const row = widget.addStack();
@@ -254,7 +298,7 @@ function createWidget(data) {
     iconElement.imageSize = new Size(iconSize, iconSize);
     iconElement.tintColor = new Color(habit.color || "#ffffff");
 
-    row.addSpacer(4 * scale);
+    row.addSpacer(); // Push dots to center
 
     const dotsStack = row.addStack();
     dotsStack.layoutHorizontally();
@@ -274,15 +318,18 @@ function createWidget(data) {
       dot.textColor = new Color(habit.color || "#ffffff", count > 0 ? opacity : 0.15);
     });
 
-    row.addSpacer(4 * scale);
+    row.addSpacer(); // Push dots to center
 
     const todayCount = habit.history ? (habit.history[formatDate(new Date())] || 0) : 0;
-    const counterText = row.addText(String(todayCount));
-    counterText.font = new Font("Menlo", fontSize);
-    counterText.textColor = new Color(habit.color || "#ffffff", 0.5);
+    const counterStack = row.addStack();
+    counterStack.size = new Size(20 * scale, iconSize);
+    counterStack.centerAlignContent();
+    const counterText = counterStack.addText(String(todayCount));
+    counterText.font = new Font("Menlo-Bold", fontSize);
+    counterText.textColor = new Color(habit.color || "#ffffff", 0.8);
 
     if (idx < numHabits - 1) {
-      widget.addSpacer(spacing);
+      widget.addSpacer(); // Space between rows
     }
   });
 
@@ -291,6 +338,8 @@ function createWidget(data) {
     msg.font = MENLO_REGULAR;
     msg.textColor = COLOR_FILLED;
   }
+
+  widget.addSpacer(); // Bottom spacer for vertical centering
 
   return widget;
 }
