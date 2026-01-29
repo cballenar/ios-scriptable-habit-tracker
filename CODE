@@ -147,21 +147,16 @@ function createWidget(data, widgetFamily) {
   let COLUMNS = 14; // Fixed width 14 days
 
   // Adaptive Logic
-  const habitCount = habits.length;
-  let rowsPerHabit = 1;
-  let laneSpacing = 6;
-  let maxHabitsToShow = 6;
+  if (widgetFamily === "small") COLUMNS = 5;
 
-  if (widgetFamily !== "small") {
-    if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
-    else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
-    else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
-    else if (habitCount >= 4) { rowsPerHabit = 1; laneSpacing = (habitCount > 5) ? 2 : 4; }
-  } else {
-    // Small widget fallback
-    maxHabitsToShow = 4;
-    COLUMNS = 5;
-  }
+  const habitCount = habits.length;
+  let maxHabitsToShow = 6;
+  let rowsPerHabit = 1;
+  let laneSpacing = (habitCount > 5) ? 2 : 4;
+
+  if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
+  else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
+  else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
 
   const habitsToShow = habits.slice(0, maxHabitsToShow);
 
