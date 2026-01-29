@@ -1,12 +1,10 @@
-# iOS Habit Tracker via Scriptable
-
-**Version 2.0 (Fork)**
-
-> This project is a major overhaul of the original text-based tracker. Huge
-> thanks to [anviqs](https://github.com/anviqs) for the original work!
+# iOS Scriptable Habit Tracker v2
 
 A powerful, interactive, and aesthetic habit tracker for iOS built with
 [Scriptable](https://scriptable.app/).
+
+> This project is a major overhaul of the original text-based tracker. Huge
+> thanks to [anviqs](https://github.com/anviqs) for the original work!
 
 ## What's New in v2.0
 
