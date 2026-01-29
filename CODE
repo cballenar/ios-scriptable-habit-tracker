@@ -137,32 +137,22 @@ function createWidget(data, widgetFamily) {
 
   const w = new ListWidget();
   w.backgroundColor = new Color(theme.background);
-  w.setPadding(12, 12, 12, 12);
+  // Reduced padding to allow centering spacers to do the work
+  w.setPadding(12, 0, 12, 0);
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const todayDate = `${year}-${String(month).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Layout Configuration
+  // Max habits based on widget height constraints
+  const MAX_HABITS = widgetFamily === "small" ? 4 : 5;
+  // Increased days to fill width
+  const DAYS_TO_SHOW = widgetFamily === "small" ? 5 : 14;
 
-  const headerStack = w.addStack();
-  headerStack.layoutHorizontally();
-  headerStack.centerAlignContent();
-
-  const weekday = headerStack.addText(now.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase());
-  weekday.font = Font.heavySystemFont(10);
-  weekday.textColor = Color.red();
-
-  headerStack.addSpacer(6);
-
-  const dateText = headerStack.addText(`${now.getDate()} ${now.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}`);
-  dateText.font = Font.semiboldSystemFont(10);
-  dateText.textColor = new Color(theme.text, 0.6);
-
-  w.addSpacer(8);
+  const ICON_SIZE = new Size(22, 22);
+  const DOT_SIZE = new Size(22, 22);
+  const DOT_SPACING = 0;
+  const ROW_SPACING = 0;
 
   // Render Habits
-  const maxHabits = 8; // Safety limit
-  const habitsToShow = habits.slice(0, maxHabits);
+  const habitsToShow = habits.slice(0, MAX_HABITS);
 
   if (habitsToShow.length === 0) {
     const t = w.addText("No habits set.");
@@ -170,60 +160,68 @@ function createWidget(data, widgetFamily) {
     return w;
   }
 
-  const dates = generateMonthDates(year, month);
+  // Generate Trailing Dates
+  const now = new Date();
+  const dates = [];
+  for (let i = DAYS_TO_SHOW - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    dates.push(dateStr);
+  }
+  const todayDate = dates[dates.length - 1];
+
+  // Pre-load Dot Symbol for efficiency
+  const dotSymbol = SFSymbol.named("square.fill");
 
   habitsToShow.forEach(habit => {
     const row = w.addStack();
     row.layoutHorizontally();
     row.centerAlignContent();
 
-    const icon = SFSymbol.named(habit.icon) || SFSymbol.named("circle.fill");
-    const iconImg = row.addImage(icon.image);
-    iconImg.imageSize = new Size(12, 12);
+    // Centering Spacer (Left)
+    row.addSpacer();
+
+    // Icon
+    const iconFn = SFSymbol.named(habit.icon) || SFSymbol.named("circle.fill");
+    const iconImg = row.addImage(iconFn.image);
+    iconImg.imageSize = ICON_SIZE;
     iconImg.tintColor = new Color(habit.color);
 
-    row.addSpacer(6);
+    // Spacing between Icon and Grid
+    row.addSpacer(2);
 
+    // Dots Grid
     const dotsStack = row.addStack();
     dotsStack.layoutHorizontally();
+    dotsStack.centerAlignContent();
 
-    const visibleDates = dates;
-
-    visibleDates.forEach(date => {
+    dates.forEach(date => {
       const count = habit.history[date] || 0;
       const target = habit.target || 1;
-      const opacity = count > 0 ? Math.min(count / target, 1.0) : 0.2;
-
+      const opacity = count > 0 ? Math.min(count / target, 1.0) : 0.15;
       const isToday = (date === todayDate);
 
-      const dotStack = dotsStack.addStack();
-      dotStack.layoutVertically();
+      // Dot Image
+      const dotImg = dotsStack.addImage(dotSymbol.image);
+      dotImg.imageSize = DOT_SIZE;
 
-      const dotSize = 6;
-      const dot = dotStack.addText("●");
-      dot.font = Font.systemFont(dotSize);
-
-      let color = new Color(habit.color);
+      let color;
       if (count === 0) {
         color = new Color(theme.text, 0.2);
-        if (isToday) color = Color.red();
+        if (isToday) color = new Color(theme.text, 0.6); // Highlight today
       } else {
         color = new Color(habit.color, opacity);
       }
+      dotImg.tintColor = color;
 
-      dot.textColor = color;
-      dotStack.addSpacer(1);
+      dotsStack.addSpacer(DOT_SPACING);
     });
 
-    row.addSpacer(null);
+    // Centering Spacer (Right)
+    row.addSpacer();
 
-    let monthCount = 0;
-    Object.values(habit.history).forEach(v => monthCount += v);
-    const countText = row.addText(`${monthCount}`);
-    countText.font = Font.systemFont(10);
-    countText.textColor = new Color(theme.text, 0.5);
-
-    w.addSpacer(4);
+    w.addSpacer(ROW_SPACING);
   });
 
   return w;
