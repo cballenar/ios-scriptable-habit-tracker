@@ -29,9 +29,19 @@ const THEME_NAMES = [
   "Solarized Dark", "Nordic Night", "Paper White", "Sweet Pink"
 ];
 
-const DEFAULT_HABIT_COLORS = [
-  "#FF595E", "#FFCA3A", "#8AC926", "#1982C4", "#6A4C93", "#F15BB5"
+const COLOR_PALETTE = [
+  { name: "Coral Red", hex: "#FF595E" },
+  { name: "Sunny Yellow", hex: "#FFCA3A" },
+  { name: "Pear Green", hex: "#8AC926" },
+  { name: "Ocean Blue", hex: "#1982C4" },
+  { name: "Royal Purple", hex: "#6A4C93" },
+  { name: "Hot Pink", hex: "#F15BB5" },
+  { name: "Teal", hex: "#2dd4bf" },
+  { name: "Sky Blue", hex: "#38bdf8" },
+  { name: "Slate Gray", hex: "#64748b" }
 ];
+
+const DEFAULT_HABIT_COLORS = COLOR_PALETTE.map(c => c.hex);
 
 // 🔵 FILE SYSTEM MANAGEMENT
 function getFilePath() {
@@ -437,44 +447,199 @@ async function confirmDelete(name) {
 
 async function presentHabitForm(data, habit = null, index = null) {
   const isEdit = habit !== null;
-  const alert = new Alert();
-  alert.title = isEdit ? "Edit Habit" : "New Habit";
+  // Initialize working state
+  let draft = isEdit ? { ...habit } : {
+    id: generateUUID(),
+    name: "",
+    icon: "star.fill",
+    color: COLOR_PALETTE[0].hex,
+    target: 1,
+    history: {}
+  };
 
-  alert.addTextField("Name", isEdit ? habit.name : "");
-  alert.addTextField("Icon (SFSymbol)", isEdit ? habit.icon : "star.fill");
-  alert.addTextField("Color (Hex)", isEdit ? habit.color : DEFAULT_HABIT_COLORS[data.habits.length % DEFAULT_HABIT_COLORS.length]);
-  alert.addTextField("Target (Daily)", isEdit ? String(habit.target) : "1");
+  // Helper to re-render table
+  const table = new UITable();
+  table.showSeparators = true;
 
-  alert.addAction("Save");
-  alert.addCancelAction("Cancel");
+  const render = () => {
+    table.removeAllRows();
 
-  const response = await alert.presentAlert();
+    // TITLE ROW
+    const titleRow = new UITableRow();
+    titleRow.isHeader = true;
+    titleRow.addText(isEdit ? "Edit Habit" : "New Habit");
+    table.addRow(titleRow);
 
-  if (response === 0) {
-    const name = alert.textFieldValue(0).trim();
-    const icon = alert.textFieldValue(1).trim();
-    const color = alert.textFieldValue(2).trim();
-    const target = parseInt(alert.textFieldValue(3).trim()) || 1;
-
-    if (name.length === 0) return; // Validation
-
-    const newHabit = {
-      id: isEdit ? habit.id : generateUUID(),
-      name: name,
-      icon: icon,
-      color: color,
-      target: target,
-      history: isEdit ? habit.history : {}
+    // 1. NAME
+    const nameRow = new UITableRow();
+    nameRow.height = 60;
+    nameRow.dismissOnSelect = false; 
+    
+    const nameLabel = nameRow.addText("Name");
+    nameLabel.widthWeight = 3;  // Fixed Label Width
+    
+    const nameVal = nameRow.addText(draft.name || "Habit name...");
+    nameVal.widthWeight = 7;
+    nameVal.leftAligned();
+    nameVal.titleColor = Color.gray();
+    
+    nameRow.onSelect = async () => {
+      const a = new Alert();
+      a.title = "Habit Name";
+      a.addTextField("Name", draft.name);
+      a.addAction("OK");
+      a.addCancelAction("Cancel");
+      if (await a.presentAlert() === 0) {
+        draft.name = a.textFieldValue(0).trim();
+        render(); 
+      }
     };
+    table.addRow(nameRow);
 
-    if (isEdit) {
-      data.habits[index] = newHabit;
-    } else {
-      data.habits.push(newHabit);
-    }
+    // 2. ICON
+    const iconRow = new UITableRow();
+    iconRow.height = 60;
+    iconRow.dismissOnSelect = false; 
+    
+    const iconLabel = iconRow.addText("Icon");
+    iconLabel.widthWeight = 3; 
 
-    saveData(data);
-  }
+    const iconVal = iconRow.addText(draft.icon);
+    iconVal.widthWeight = 6;
+    iconVal.leftAligned();
+    iconVal.titleColor = Color.gray();
+    
+    const iconImg = SFSymbol.named(draft.icon) || SFSymbol.named("questionmark.circle");
+    const iconCell = iconRow.addImage(iconImg.image);
+    iconCell.widthWeight = 1;
+    iconCell.rightAligned();
+    // Ensure visibility in both modes
+    iconCell.tintColor = Color.dynamic(new Color("000000"), new Color("ffffff"));
+    
+    iconRow.onSelect = async () => {
+      const a = new Alert();
+      a.title = "SFSymbol Name";
+      a.message = "Enter any valid SFSymbol name";
+      a.addTextField("Symbol", draft.icon);
+      a.addAction("OK");
+      a.addCancelAction("Cancel");
+      if (await a.presentAlert() === 0) {
+        draft.icon = a.textFieldValue(0).trim();
+        render();
+      }
+    };
+    table.addRow(iconRow);
+
+    // 3. COLOR
+    const colorRow = new UITableRow();
+    colorRow.height = 60;
+    colorRow.dismissOnSelect = false;
+    
+    const colorLabel = colorRow.addText("Color");
+    colorLabel.widthWeight = 3;
+    
+    const knownColor = COLOR_PALETTE.find(c => c.hex.toLowerCase() === draft.color.toLowerCase());
+    const colorVal = colorRow.addText(knownColor ? knownColor.name : draft.color);
+    colorVal.widthWeight = 6;
+    colorVal.leftAligned();
+    colorVal.titleColor = Color.gray();
+
+    // Draw Color Circle (High Res)
+    const drawColor = new DrawContext();
+    drawColor.size = new Size(72, 72); 
+    drawColor.setFillColor(new Color(draft.color));
+    drawColor.fillEllipse(new Rect(0, 0, 72, 72));
+    const swatchCell = colorRow.addImage(drawColor.getImage());
+    swatchCell.widthWeight = 1;
+    swatchCell.rightAligned();
+    
+    colorRow.onSelect = async () => {
+      const p = new Alert();
+      p.title = "Select Color";
+      COLOR_PALETTE.forEach(c => p.addAction(c.name));
+      p.addAction("Custom Hex...");
+      p.addCancelAction("Cancel");
+      
+      const sel = await p.presentSheet();
+      if (sel >= 0 && sel < COLOR_PALETTE.length) {
+        draft.color = COLOR_PALETTE[sel].hex;
+      } else if (sel === COLOR_PALETTE.length) {
+         const a = new Alert();
+         a.title = "Hex Color";
+         a.addTextField("#RRGGBB", draft.color);
+         a.addAction("Set");
+         a.addCancelAction("Cancel");
+         if (await a.presentAlert() === 0) {
+             draft.color = a.textFieldValue(0).trim();
+         }
+      }
+      render();
+    };
+    table.addRow(colorRow);
+
+    // 4. TARGET
+    const targetRow = new UITableRow();
+    targetRow.height = 60;
+    targetRow.dismissOnSelect = false; 
+    
+    const targetLabel = targetRow.addText("Daily Target");
+    targetLabel.widthWeight = 3;
+
+    const targetVal = targetRow.addText(`${draft.target}`);
+    targetVal.widthWeight = 7;
+    targetVal.leftAligned();
+    targetVal.titleColor = Color.gray();
+    
+    targetRow.onSelect = async () => {
+       const a = new Alert();
+       a.title = "Daily Goal";
+       a.addTextField("Count", String(draft.target));
+       a.addAction("OK");
+       if (await a.presentAlert() === 0) {
+           draft.target = parseInt(a.textFieldValue(0)) || 1;
+           render();
+       }
+    };
+    table.addRow(targetRow);
+
+    // SAVE BUTTON
+    const saveRow = new UITableRow();
+    saveRow.height = 60;
+    saveRow.dismissOnSelect = true; // Close form on save
+    const saveText = saveRow.addText("Save Habit");
+    saveText.titleColor = Color.blue();
+    saveText.centerAligned();
+    saveRow.onSelect = () => {
+       if (draft.name.length === 0) {
+           const err = new Alert();
+           err.message = "Please enter a habit name.";
+           err.addAction("OK");
+           err.present();
+           return;
+       }
+       
+       // Commit
+       if (isEdit) {
+           data.habits[index] = draft;
+       } else {
+           data.habits.push(draft);
+       }
+       saveData(data);
+       // We can't easily "dismiss" a presented table via code in standard Scriptable 
+       // nicely without a refresh, but in this flow we typically just fall back 
+       // to the Manager which reloads.
+       // Ideally we show a confirmation?
+       const n = new Notification();
+       n.title = "Saved";
+       n.schedule(); 
+    };
+    table.addRow(saveRow);
+    
+    table.reload();
+  };
+
+  render();
+  await table.present();
 }
 
 // 🔵 MAIN ENTRY
