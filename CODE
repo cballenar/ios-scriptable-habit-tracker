@@ -1,5 +1,4 @@
 // 🟢 HABIT TRACKER CORE
-// Version 2.1
 
 const FILE_NAME = "habit_tracker_data.json";
 const KEYCHAIN_HABITS_KEY = "multiHabitTrackerHabits";
@@ -117,18 +116,7 @@ function generateUUID() {
   });
 }
 
-function daysInMonth(month, year) {
-  return new Date(year, month, 0).getDate();
-}
 
-function generateMonthDates(year, month) {
-  const days = daysInMonth(month, year);
-  const dates = [];
-  for (let d = 1; d <= days; d++) {
-    dates.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
-  }
-  return dates;
-}
 
 // 🔵 UI: WIDGET RENDERING
 function createWidget(data, widgetFamily) {
@@ -149,26 +137,35 @@ function createWidget(data, widgetFamily) {
   // Adaptive Logic
   if (widgetFamily === "small") COLUMNS = 5;
 
-  const habitCount = habits.length;
+  const count = habits.length;
   let maxHabitsToShow = 6;
   let rowsPerHabit = 1;
-  let laneSpacing = (habitCount > 5) ? 2 : 4;
+  let laneSpacing = 4;
 
   if (widgetFamily === "large") {
     maxHabitsToShow = 12;
-    // Large Logic
-    if (habitCount === 1) { rowsPerHabit = 14; laneSpacing = 0; }
-    else if (habitCount === 2) { rowsPerHabit = 7; laneSpacing = 16; }
-    else if (habitCount === 3) { rowsPerHabit = 4; laneSpacing = 12; }
-    else if (habitCount === 4) { rowsPerHabit = 3; laneSpacing = 12; }
-    else if (habitCount <= 6) { rowsPerHabit = 2; laneSpacing = 8; } // 5-6 habits
-    else { rowsPerHabit = 1; laneSpacing = 4; } // 7-12 habits
+    // Default spacing for large widget
+    laneSpacing = 4;
 
+    switch (count) {
+      case 1: rowsPerHabit = 14; laneSpacing = 0; break;
+      case 2: rowsPerHabit = 7; laneSpacing = 16; break;
+      case 3: rowsPerHabit = 4; laneSpacing = 12; break;
+      case 4: rowsPerHabit = 3; laneSpacing = 12; break;
+      case 5:
+      case 6: rowsPerHabit = 2; laneSpacing = 8; break;
+      default: rowsPerHabit = 1; laneSpacing = 4; break;
+    }
   } else {
-    // Small/Medium Logic
-    if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
-    else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
-    else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
+    // Small & Medium Logic
+    laneSpacing = (count > 5) ? 2 : 4;
+
+    switch (count) {
+      case 1: rowsPerHabit = 7; laneSpacing = 0; break;
+      case 2: rowsPerHabit = 3; laneSpacing = 4; break;
+      case 3: rowsPerHabit = 2; laneSpacing = 2; break;
+      default: rowsPerHabit = 1; break;
+    }
   }
 
   const habitsToShow = habits.slice(0, maxHabitsToShow);
@@ -242,7 +239,7 @@ function createWidget(data, widgetFamily) {
           } else if (d.getDay() === 0) { // Sunday highlight
             color = new Color(theme.text, 0.35); // Lighter than normal
           } else {
-          color = new Color(theme.text, 0.2);
+            color = new Color(theme.text, 0.2);
           }
         } else {
           color = new Color(habit.color, opacity);
@@ -484,7 +481,7 @@ async function presentHabitForm(data, habit = null, index = null) {
 async function main() {
   const data = await loadData();
 
-  // 1. Handle URL Scheme (Widget Tap or Open URL via Shortcut)
+  // Handle URL Scheme
   if (args.queryParameters["action"] === "increment") {
     // Case A: ID provided (Widget)
     if (args.queryParameters["habitId"]) {
@@ -508,7 +505,7 @@ async function main() {
     }
   }
 
-  // 2. Handle Shortcut Input (e.g. "Water" or {"name": "Water"})
+  // Handle Shortcut Input
   if (args.shortcutParameter) {
     let param = args.shortcutParameter;
     let habitName = null;
@@ -535,7 +532,7 @@ async function main() {
     return;
   }
 
-  // 3. Run UI (Widget or App)
+  // Run UI
   if (config.runsInWidget) {
     const w = createWidget(data, config.widgetFamily);
     Script.setWidget(w);
