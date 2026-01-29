@@ -154,9 +154,22 @@ function createWidget(data, widgetFamily) {
   let rowsPerHabit = 1;
   let laneSpacing = (habitCount > 5) ? 2 : 4;
 
-  if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
-  else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
-  else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
+  if (widgetFamily === "large") {
+    maxHabitsToShow = 12;
+    // Large Logic
+    if (habitCount === 1) { rowsPerHabit = 14; laneSpacing = 0; }
+    else if (habitCount === 2) { rowsPerHabit = 7; laneSpacing = 16; }
+    else if (habitCount === 3) { rowsPerHabit = 4; laneSpacing = 12; }
+    else if (habitCount === 4) { rowsPerHabit = 3; laneSpacing = 12; }
+    else if (habitCount <= 6) { rowsPerHabit = 2; laneSpacing = 8; } // 5-6 habits
+    else { rowsPerHabit = 1; laneSpacing = 4; } // 7-12 habits
+
+  } else {
+    // Small/Medium Logic
+    if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
+    else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
+    else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
+  }
 
   const habitsToShow = habits.slice(0, maxHabitsToShow);
 
@@ -169,7 +182,10 @@ function createWidget(data, widgetFamily) {
   // Pre-load Symbols
   const dotSymbol = SFSymbol.named("square.fill");
 
-  habitsToShow.forEach(habit => {
+  // Vertically Center Content
+  w.addSpacer();
+
+  habitsToShow.forEach((habit, index) => {
     // LANE (Horizontal: Icon + Grid)
     const lane = w.addStack();
     lane.layoutHorizontally();
@@ -200,23 +216,9 @@ function createWidget(data, widgetFamily) {
       const rowStack = gridStack.addStack();
       rowStack.layoutHorizontally();
 
-      // In a multi-row view, usually Top is "Current". 
-      // Row 0: [Today-13 ... Today]
-      // Row 1: [Today-27 ... Today-14]
-      // Offset = r * COLUMNS
-
-      // We generate dates right to left (Newest to Oldest) visually? 
-      // Actually "dates.push" logic usually goes Oldest -> Newest (Left -> Right).
-      // So for Row 0, we want [Today-13 ... Today].
-      // For Row 1, we want [Today-27 ... Today-14].
-
-      // Let's calculate the "End Date" for this row.
-      // Row 0 End = Today.
-      // Row 1 End = Today - 14 days.
       const rowOffsetDays = r * COLUMNS;
 
       // Generate dots for this row
-      // Iterate `i` from COLUMNS-1 down to 0 to generate [Oldest ... Newest] in this chunk
       for (let c = COLUMNS - 1; c >= 0; c--) {
         const dayOffset = rowOffsetDays + c;
 
@@ -251,8 +253,11 @@ function createWidget(data, widgetFamily) {
     // 4. Spacer Right
     lane.addSpacer(); // Centers the block
 
-    w.addSpacer(laneSpacing); // Spacing between habits
+    if (index < habitsToShow.length - 1) w.addSpacer(laneSpacing);
   });
+
+  // Vertically Center Content
+  w.addSpacer();
 
   return w;
 }
