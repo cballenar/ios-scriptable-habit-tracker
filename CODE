@@ -137,22 +137,33 @@ function createWidget(data, widgetFamily) {
 
   const w = new ListWidget();
   w.backgroundColor = new Color(theme.background);
-  // Reduced padding to allow centering spacers to do the work
   w.setPadding(12, 0, 12, 0);
 
-  // Layout Configuration
-  // Max habits based on widget height constraints
-  const MAX_HABITS = widgetFamily === "small" ? 4 : 5;
-  // Increased days to fill width
-  const DAYS_TO_SHOW = widgetFamily === "small" ? 5 : 14;
-
-  const ICON_SIZE = new Size(22, 22);
-  const DOT_SIZE = new Size(22, 22);
+  // Config
+  const ICON_SIZE = new Size(21, 21);
+  const DOT_SIZE = new Size(21, 21);
   const DOT_SPACING = 0;
   const ROW_SPACING = 0;
+  let COLUMNS = 14; // Fixed width 14 days
 
-  // Render Habits
-  const habitsToShow = habits.slice(0, MAX_HABITS);
+  // Adaptive Logic
+  const habitCount = habits.length;
+  let rowsPerHabit = 1;
+  let laneSpacing = 6;
+  let maxHabitsToShow = 6;
+
+  if (widgetFamily !== "small") {
+    if (habitCount === 1) { rowsPerHabit = 7; laneSpacing = 0; }
+    else if (habitCount === 2) { rowsPerHabit = 3; laneSpacing = 4; }
+    else if (habitCount === 3) { rowsPerHabit = 2; laneSpacing = 2; }
+    else if (habitCount >= 4) { rowsPerHabit = 1; laneSpacing = (habitCount > 5) ? 2 : 4; }
+  } else {
+    // Small widget fallback
+    maxHabitsToShow = 4;
+    COLUMNS = 5;
+  }
+
+  const habitsToShow = habits.slice(0, maxHabitsToShow);
 
   if (habitsToShow.length === 0) {
     const t = w.addText("No habits set.");
@@ -160,73 +171,92 @@ function createWidget(data, widgetFamily) {
     return w;
   }
 
-  // Generate Trailing Dates
-  const now = new Date();
-  const dates = [];
-  for (let i = DAYS_TO_SHOW - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(now.getDate() - i);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    dates.push(dateStr);
-  }
-  const todayDate = dates[dates.length - 1];
-
-  // Pre-load Dot Symbol for efficiency
+  // Pre-load Symbols
   const dotSymbol = SFSymbol.named("square.fill");
 
   habitsToShow.forEach(habit => {
-    const row = w.addStack();
-    row.layoutHorizontally();
-    row.centerAlignContent();
+    // LANE (Horizontal: Icon + Grid)
+    const lane = w.addStack();
+    lane.layoutHorizontally();
+    lane.centerAlignContent(); // Vertically center icon relative to grid
 
-    // Centering Spacer (Left)
-    row.addSpacer();
+    // 1. Spacer Left
+    lane.addSpacer();
 
-    // Icon
+    // 2. Icon (Centered in Lane)
     const iconFn = SFSymbol.named(habit.icon) || SFSymbol.named("circle.fill");
-    const iconImg = row.addImage(iconFn.image);
+    const iconImg = lane.addImage(iconFn.image);
     iconImg.imageSize = ICON_SIZE;
     iconImg.tintColor = new Color(habit.color);
 
-    // Interactive: Tap to Increment
+    // Tap to Increment
     const scriptName = Script.name();
-    const url = `scriptable:///run/${encodeURIComponent(scriptName)}?habitId=${habit.id}&action=increment`;
+    const url = `scriptable:///run/${encodeURIComponent(scriptName)}?habitName=${encodeURIComponent(habit.name)}&action=increment`;
     iconImg.url = url;
 
-    // Spacing between Icon and Grid
-    row.addSpacer(2);
+    lane.addSpacer(2); // Spacing between Icon and Grid
 
-    // Dots Grid
-    const dotsStack = row.addStack();
-    dotsStack.layoutHorizontally();
-    dotsStack.centerAlignContent();
+    // 3. Grid Stack (Vertical: Holds multiple rows of dots)
+    const gridStack = lane.addStack();
+    gridStack.layoutVertically();
 
-    dates.forEach(date => {
-      const count = habit.history[date] || 0;
-      const target = habit.target || 1;
-      const opacity = count > 0 ? Math.min(count / target, 1.0) : 0.15;
-      const isToday = (date === todayDate);
+    // Render Rows (History)
+    for (let r = 0; r < rowsPerHabit; r++) {
+      const rowStack = gridStack.addStack();
+      rowStack.layoutHorizontally();
 
-      // Dot Image
-      const dotImg = dotsStack.addImage(dotSymbol.image);
-      dotImg.imageSize = DOT_SIZE;
+      // In a multi-row view, usually Top is "Current". 
+      // Row 0: [Today-13 ... Today]
+      // Row 1: [Today-27 ... Today-14]
+      // Offset = r * COLUMNS
 
-      let color;
-      if (count === 0) {
-        color = new Color(theme.text, 0.2);
-        if (isToday) color = new Color(theme.text, 0.6); // Highlight today
-      } else {
-        color = new Color(habit.color, opacity);
+      // We generate dates right to left (Newest to Oldest) visually? 
+      // Actually "dates.push" logic usually goes Oldest -> Newest (Left -> Right).
+      // So for Row 0, we want [Today-13 ... Today].
+      // For Row 1, we want [Today-27 ... Today-14].
+
+      // Let's calculate the "End Date" for this row.
+      // Row 0 End = Today.
+      // Row 1 End = Today - 14 days.
+      const rowOffsetDays = r * COLUMNS;
+
+      // Generate dots for this row
+      // Iterate `i` from COLUMNS-1 down to 0 to generate [Oldest ... Newest] in this chunk
+      for (let c = COLUMNS - 1; c >= 0; c--) {
+        const dayOffset = rowOffsetDays + c;
+
+        const d = new Date();
+        d.setDate(d.getDate() - dayOffset);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+        // Get Data
+        const count = habit.history[dateStr] || 0;
+        const target = habit.target || 1;
+        const opacity = count > 0 ? Math.min(count / target, 1.0) : 0.15;
+        const isToday = (dayOffset === 0);
+
+        const dotImg = rowStack.addImage(dotSymbol.image);
+        dotImg.imageSize = DOT_SIZE;
+
+        let color;
+        if (count === 0) {
+          color = new Color(theme.text, 0.2);
+          if (isToday) color = new Color(theme.text, 0.6);
+        } else {
+          color = new Color(habit.color, opacity);
+        }
+        dotImg.tintColor = color;
+
+        if (c > 0) rowStack.addSpacer(DOT_SPACING);
       }
-      dotImg.tintColor = color;
 
-      dotsStack.addSpacer(DOT_SPACING);
-    });
+      if (r < rowsPerHabit - 1) gridStack.addSpacer(ROW_SPACING);
+    }
 
-    // Centering Spacer (Right)
-    row.addSpacer();
+    // 4. Spacer Right
+    lane.addSpacer(); // Centers the block
 
-    w.addSpacer(ROW_SPACING);
+    w.addSpacer(laneSpacing); // Spacing between habits
   });
 
   return w;
