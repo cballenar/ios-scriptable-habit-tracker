@@ -1,124 +1,89 @@
-# Habit Tracker Widget
-### (Inspired by James Scholz)
+# iOS Habit Tracker via Scriptable
 
-> 🎥 Credit: [James Scholz's YouTube Video](https://youtu.be/Cu-IMFl37LA?t=138)
+**Version 2.0 (Fork)**
 
-A simple and customizable habit tracker widget built for **Scriptable** on iOS.  
-Track your daily progress across up to six habits directly from your Home Screen with a clean and minimal design.
+> This project is a major overhaul of the original text-based tracker. Huge
+> thanks to [anviqs](https://github.com/anviqs) for the original work!
 
----
+A powerful, interactive, and aesthetic habit tracker for iOS built with
+[Scriptable](https://scriptable.app/).
 
-## Features
+## What's New in v2.0
 
-- **Daily Habit Tracking**: Log your daily habits quickly.
-- **Theme Customization**: Choose from 7 built-in themes to match your style.
-- **Habit Customization**: Edit the six habits easily whenever you want.
-- **Automatic Monthly Reset**: Automatically resets and backs up your habit data when a new month starts.
-- **Manual Reset Option**: Manually export and reset your data anytime.
-- **Compact and Visual Layout**: View your entire month at a glance with simple dot indicators.
-- **Dynamic Updates**: Changes to habits and themes are instantly reflected.
+- **Improved flexibility**: No restrictions on the number of habits. You can
+  track 1 or 100!
+- **Continuous History**: No more monthly resets. Data is stored permanently in
+  JSON. Feel free to do with the file as you please.
+- **Admin UI**: Manage habits via native iOS menus. Add, delete, edit, and
+  change colors and icons.
+- **Adaptive Heatmaps**: The widget heatmaps will change in size and layout
+  depending on the number of habits and size of the widget. Allowing you to see
+  more history for fewer habits, or less history for more habits.
+- **Tap-to-Log**: Configure the script widget to track a habit or open the menu.
+- **Shortcuts Support**: Want to track your habits with one tap? Setup separate
+  Shortcuts for each habit to log them instantly!
 
----
+<img src="assets/ios-habit-tracker-v2-widget-lg.png" width="480">
 
-## Visual Example
+## Layout & Themes
 
-![Preview](classicdark.PNG)
+The widget adapts its layout automatically:
 
-The widget displays:
-- A row with the weekday initial, daily dots for the current month, and today's date.
-- Individual rows for each habit showing progress and a counter like `12/30`.
+- **Small Widget**: Up to 6 habits with rows of 5 days.
+- **Medium Widget**: Up to 6 habits, with rows of 14 days. Switching between
+  detailed heatmaps and compact rows.
+- **Large Widget**: Up to 12 habits with rows of 14 days. Massive history views.
 
----
+### Included Themes
 
-## How It Works
+Retained the beautiful color palettes from the original:
 
----
-
-### 1. Changing Habits
-
-Customize your six habits by selecting **Change Habits**.  
-You will be prompted to enter **six habit names separated by commas**.
-
-Example input:
-```
-Sleep, Training, Cardio, Water, Reading, Meditation
-```
-
-After saving, your widget will immediately display the new habits.
-
-![Habits](changehabits.jpg)
-
----
-
-### 2. Resetting the Month
-
-There are **two ways** the month can be reset:
-
-- **Automatic Reset**:  
-  At the start of a new month, the widget automatically:
-  - Exports a summary of your previous month's habit performance to the clipboard,
-  - Resets the tracker for the new month.
-
-You do **not need to manually reset** this happens automatically.
-
-- **Manual Reset**:  
-  If you want to reset before the month ends, select **Reset Month** inside the app:
-  - It will export the current month's data to the clipboard,
-  - Then reset your tracker manually.
-
-![Clipboard](clipboardnotification.jpg)
-![Clipboard](clipboard.jpg)
-
----
-
-### 3. Choosing a Theme
-
-Change the widget's appearance with the **Select Theme** option.  
-Available themes:
-
-- Classic Dark
-![classicdark](classicdark.PNG)
-- Classic Light
-![classiclight](classicwhite.PNG)
-- Midnight Blue
-![midnightblue](midnightblue.PNG)
-- Solarized Dark
-![solarizeddark](solarizeddark.PNG)
-- Nordic Night
-![nordicnight](nordicnight.PNG)
-- Paper White
-![paperwhite](paperwhite.PNG)
-- Sweet Pink
-![sweetpink](sweetpink.PNG)
-
-Each theme adjusts background and font colors to match different moods and styles.
-
-![Select](themeselect.jpg)
-
----
-
-### 4. Tracking Habits (Check-in)
-
-You can mark a habit for today inside the Scriptable app by selecting **Check-in**.  
-Each habit row shows daily progress with small dots:
-- **Filled dot** = Habit completed.
-- **Unfilled dot** = Habit not completed.
-
-![Check-in](checkin.jpg)
-
----
+- **Classic Dark** / **Light**
+- **Midnight Blue**
+- **Solarized Dark**
+- **Nordic Night**
+- **Paper White**
+- **Sweet Pink**
 
 ## Setup Instructions
 
-1. Install [Scriptable](https://apps.apple.com/app/scriptable/id1405459188) from the App Store.
-2. Create a new script and paste the full code.
-3. Run the script inside Scriptable to configure your habits and preferences.
-4. Add a Scriptable widget to your Home Screen.
-5. Link the newly created script to the widget.
+1. **Install Scriptable**: Download
+   [Scriptable](https://apps.apple.com/us/app/scriptable/id1405459188).
+2. **Install the Script**:
+   - Create a new script named `Habit Tracker`.
+   - Paste the code from `CODE`.
+3. **Run Once**:
+   - Run the script inside the app once to initialize the data and open the
+     **Admin Menu**.
+   - Use the menu to add your habits.
+4. **Add Widget**:
+   - Add a Scriptable widget to your Home Screen.
+   - Select the `Habit Tracker` script.
+   - **Important**: Set "When Interacting" to "Run Script" to enable
+     tap-to-increment.
 
-Done! Your habit tracker is now live and ready.
+<img src="assets/ios-habit-tracker-v2-habit-manager.png" width="480">
 
----
+## Automating with Shortcuts
+
+You can log habits via Apple Shortcuts:
+
+1. Add a **Text** action and type your habit name (e.g., `Water`).
+2. Add a **Run Script** action (from Scriptable).
+3. Select your `Habit Tracker` script.
+4. The text variable will be automatically selected.
+5. Recommended: Add the **Refresh all widgets** action.
+
+<img src="assets/ios-habit-tracker-v2-shortcuts.png" width="480">
+
+_Note: It is recommended to use a Text action first, as typing directly into the
+Parameter field can be glitchy on some iOS versions._
+
+## Credits
+
+- **Original Concept**:
+  [James Scholz](https://www.youtube.com/channel/UCMOqf8ab-42UUQIdVoKwjlQ)
+- **Original Script:** [anviqs](https://github.com/anviqs)
 
 ## License
 
