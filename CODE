@@ -41,6 +41,52 @@ const COLOR_PALETTE = [
   { name: "Slate Gray", hex: "#64748b" }
 ];
 
+const ICON_SETS = {
+  "Health & Body": [
+    "heart.fill", "pills.fill", "cross.case.fill", "staroflife.fill", "bed.double.fill", 
+    "lungs.fill", "brain.head.profile", "eye.fill", "mouth.fill", "ear.fill", "figure.walk", 
+    "figure.run", "figure.roll" 
+  ],
+  "Fitness & Sports": [
+    "sportscourt.fill", "soccerball", "basketball.fill", "tennis.racket", "volleyball.fill",
+    "dumbbell.fill", "figure.pool.swim", "bicycle", "figure.hiking", "figure.climbing", 
+    "trophy.fill", "medal.fill", "flag.checkered"
+  ],
+  "Food & Drink": [
+    "waterbottle.fill", "cup.and.saucer.fill", "wineglass.fill", "fork.knife", "carrot.fill", 
+    "leaf.fill", "drop.fill", "birthday.cake.fill", "takeoutbag.and.cup.and.straw.fill"
+  ],
+  "Creativity & Arts": [
+    "paintbrush.fill", "pencil.tip.crop.circle", "music.note", "guitars.fill", 
+    "camera.fill", "video.fill", "theatermasks.fill", "gamecontroller.fill", "puzzlepiece.fill"
+  ],
+  "Productivity & Work": [
+    "checkmark.circle.fill", "list.bullet.clipboard.fill", "briefcase.fill", "folder.fill", 
+    "paperplane.fill", "envelope.fill", "calendar", "clock.fill", "alarm.fill", "hourglass", 
+    "dollarsign.circle.fill", "creditcard.fill", "chart.bar.fill"
+  ],
+  "Mindfulness & Education": [
+    "book.fill", "graduationcap.fill", "lightbulb.fill", "brain", "quote.bubble.fill", 
+    "sparkles", "moon.stars.fill", "sun.max.fill", "cloud.rain.fill", "flame.fill"
+  ],
+  "Home & Lifestyle": [
+    "house.fill", "chair.lounge.fill", "bed.double.fill", "shower.fill", "cart.fill", 
+    "bag.fill", "gift.fill", "tag.fill", "hammer.fill", "wrench.and.screwdriver.fill"
+  ],
+  "Transport & Travel": [
+    "airplane", "car.fill", "bus.fill", "tram.fill", "ferry.fill", "bicycle", 
+    "figure.walk", "map.fill", "ticket.fill", "suitcase.fill"
+  ],
+  "Tech & Devices": [
+    "iphone", "ipad", "laptopcomputer", "desktopcomputer", "applewatch", "airpods", 
+    "gamecontroller.fill", "headphones", "battery.100", "wifi"
+  ],
+  "Misc": [
+    "star.fill", "heart.fill", "bolt.fill", "crown.fill", "diamond.fill", "key.fill", 
+    "lock.fill", "bell.fill", "antenna.radiowaves.left.and.right", "gearshape.fill"
+  ]
+};
+
 const DEFAULT_HABIT_COLORS = COLOR_PALETTE.map(c => c.hex);
 
 // 🔵 FILE SYSTEM MANAGEMENT
@@ -517,18 +563,15 @@ async function presentHabitForm(data, habit = null, index = null) {
     iconCell.tintColor = Color.dynamic(new Color("000000"), new Color("ffffff"));
     
     iconRow.onSelect = async () => {
-      const a = new Alert();
-      a.title = "SFSymbol Name";
-      a.message = "Enter any valid SFSymbol name";
-      a.addTextField("Symbol", draft.icon);
-      a.addAction("OK");
-      a.addCancelAction("Cancel");
-      if (await a.presentAlert() === 0) {
-        draft.icon = a.textFieldValue(0).trim();
-        render();
-      }
+       const selected = await presentIconPicker();
+       if (selected) {
+           draft.icon = selected;
+           render();
+       }
     };
     table.addRow(iconRow);
+    
+
 
     // 3. COLOR
     const colorRow = new UITableRow();
@@ -640,6 +683,94 @@ async function presentHabitForm(data, habit = null, index = null) {
 
   render();
   await table.present();
+}
+
+async function presentIconPicker() {
+  const table = new UITable();
+  table.showSeparators = true;
+  
+  let selectedIcon = null;
+
+  // MANUAL INPUT ROW
+  const manRow = new UITableRow();
+  manRow.dismissOnSelect = true; 
+  manRow.addText("✏️ Manual Input...");
+  manRow.onSelect = async () => {
+      const a = new Alert();
+      a.title = "SFSymbol Name";
+      a.addTextField("Symbol");
+      a.addAction("OK");
+      if (await a.presentAlert() === 0) {
+        selectedIcon = a.textFieldValue(0).trim();
+      }
+  };
+  table.addRow(manRow);
+
+  // CATEGORIES
+  for (const [category, icons] of Object.entries(ICON_SETS)) {
+    const header = new UITableRow();
+    header.isHeader = true;
+    header.height = 40;
+    header.backgroundColor = Color.dynamic(new Color("#f2f2f7"), new Color("#1c1c1e"));
+    header.addText(category);
+    table.addRow(header);
+
+    for (const iconName of icons) {
+      const row = new UITableRow();
+      row.height = 50;
+      row.dismissOnSelect = true;
+      
+      // Icon
+      const symbol = SFSymbol.named(iconName);
+      if (symbol) {
+         // High-Res Aspect-Fit Rendering
+         // canvas size 90x90 (3x for retina)
+         const size = 90; 
+         const draw = new DrawContext();
+         draw.size = new Size(size, size);
+         draw.opaque = false;
+         draw.tintColor = Color.dynamic(new Color("000000"), new Color("ffffff"));
+         
+         // Calculate Aspect Fit Rect
+         const img = symbol.image;
+         const imgSize = img.size;
+         const aspect = imgSize.width / imgSize.height;
+         
+         let w, h;
+         if (aspect > 1) {
+             // Wide image
+             w = size;
+             h = size / aspect;
+         } else {
+             // Tall/Square image
+             h = size;
+             w = size * aspect;
+         }
+         
+         const x = (size - w) / 2;
+         const y = (size - h) / 2;
+         
+         draw.drawImageInRect(img, new Rect(x, y, w, h));
+         
+         const imgCell = row.addImage(draw.getImage());
+         imgCell.widthWeight = 1;
+         imgCell.centerAligned(); 
+      }
+      
+      // Name
+      const textCell = row.addText(iconName);
+      textCell.widthWeight = 4;
+      
+      row.onSelect = () => {
+         selectedIcon = iconName;
+      };
+      
+      table.addRow(row);
+    }
+  }
+
+  await table.present();
+  return selectedIcon;
 }
 
 // 🔵 MAIN ENTRY
