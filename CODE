@@ -330,18 +330,67 @@ async function presentHabitActionSheet(data, habit, index) {
   a.title = habit.name;
   a.message = "Choose an action";
   a.addAction("Edit Details");
-  a.addAction("Check-in (Implement Later)"); // Placeholder for check-in
+  a.addAction("Manual Entry");
   a.addDestructiveAction("Delete Habit");
   a.addCancelAction("Cancel");
 
   const choice = await a.presentSheet();
   if (choice === 0) {
     await presentHabitForm(data, habit, index);
+  } else if (choice === 1) {
+    await presentManualEntry(data, habit);
   } else if (choice === 2) {
     if (await confirmDelete(habit.name)) {
       data.habits.splice(index, 1);
       saveData(data);
     }
+  }
+}
+
+async function presentManualEntry(data, habit) {
+  // 1. Pick Date
+  try {
+    const picker = new DatePicker();
+    picker.initialDate = new Date();
+    const date = await picker.pickDate();
+
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+    // 2. Get Current Value
+    const currentVal = habit.history[dateStr] || 0;
+
+    // 3. Prompt for new value
+    const alert = new Alert();
+    alert.title = `Set value for ${dateStr}`;
+    alert.message = `Current value: ${currentVal}`;
+    alert.addTextField("Count", String(currentVal));
+    alert.addAction("Save");
+    alert.addDestructiveAction("Clear Entry");
+    alert.addCancelAction("Cancel");
+
+    const response = await alert.presentAlert();
+
+    if (response === 0) { // Save
+      const input = alert.textFieldValue(0);
+      const val = parseInt(input);
+      if (!isNaN(val) && val > 0) {
+        habit.history[dateStr] = val;
+      } else {
+        delete habit.history[dateStr];
+      }
+      saveData(data);
+      const n = new Notification();
+      n.title = "Entry Saved";
+      n.body = `${habit.name} on ${dateStr}: ${val || 0}`;
+      n.schedule();
+
+    } else if (response === 1) { // Clear
+      delete habit.history[dateStr];
+      saveData(data);
+    }
+
+  } catch (e) {
+    // Picker cancelled or error
   }
 }
 
