@@ -237,8 +237,13 @@ function createWidget(data, widgetFamily) {
 
         let color;
         if (count === 0) {
+          if (isToday) {
+            color = new Color(theme.text, 0.6);
+          } else if (d.getDay() === 0) { // Sunday highlight
+            color = new Color(theme.text, 0.35); // Lighter than normal
+          } else {
           color = new Color(theme.text, 0.2);
-          if (isToday) color = new Color(theme.text, 0.6);
+          }
         } else {
           color = new Color(habit.color, opacity);
         }
